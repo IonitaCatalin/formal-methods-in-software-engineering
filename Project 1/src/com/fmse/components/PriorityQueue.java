@@ -1,6 +1,5 @@
 package com.fmse.components;
 
-import com.fmse.util.Pair;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,39 +7,41 @@ import java.util.List;
 public class PriorityQueue<E> implements Serializable {
     private final List <PriorityQueueElement<E>> elementsOfPQ;
 
-    public PriorityQueue(List<Pair<E,Integer>> elementsToPQ) {
-        elementsOfPQ = new ArrayList<PriorityQueueElement<E>>();
-
-        for(Pair<E,Integer> element: elementsToPQ) {
-            elementsOfPQ.add(new PriorityQueueElement<E>(element));
-        }
-    }
-
     public PriorityQueue() {
-        elementsOfPQ = new ArrayList<PriorityQueueElement<E>>();
+        elementsOfPQ = new ArrayList<>();
     }
 
     public boolean isEmpty() {
         return elementsOfPQ.isEmpty();
     }
 
-    public void push(E elementToPQ) {
+    public void insert(E elementToPQ) {
 
-        elementsOfPQ.add(new PriorityQueueElement<>(new Pair<E,Integer>(elementToPQ,this.getHighestPriority() + 1)));
+        elementsOfPQ.add(new PriorityQueueElement<>(elementToPQ,this.getHighestPriority() + 1));
     }
 
-    public E pop() {
+    public E pullHighestPriorityElement() {
 
-        
+        PriorityQueueElement<E> found = null;
+        Integer highestPriority = this.getHighestPriority();
+
+        for(PriorityQueueElement<E> element: elementsOfPQ) {
+            if(element.getPQEPriority().equals(highestPriority)){
+                found = element;
+                return found.getPQEValue();
+            }
+         }
 
         return null;
     }
 
-    public void addWithPriority(E elementToPQ, Integer priority) {
-
+    public void insertWithPriority(E elementToPQ, Integer priority) {
+        elementsOfPQ.add(new PriorityQueueElement<>(elementToPQ,priority));
     }
 
+
     public Integer getHighestPriority() {
+
         Integer highestPriority = 0 ;
 
         for(PriorityQueueElement<E> element: elementsOfPQ) {
@@ -49,14 +50,10 @@ public class PriorityQueue<E> implements Serializable {
             }
         }
 
-        if(elementsOfPQ.isEmpty())
-        {
-            return -1;
-        } else {
-            return highestPriority;
-        }
+        return elementsOfPQ.isEmpty() ? -1 : highestPriority;
 
     }
+
 
     public List<PriorityQueueElement<E>> getElements() {
         return elementsOfPQ;

@@ -1,24 +1,26 @@
 package com.fmse.components;
 
-import com.fmse.util.Pair;
 
 import java.io.Serializable;
 import java.util.Objects;
 
 public class PriorityQueueElement<E> implements Serializable {
-    private final Pair<E,Integer> element;
+    private final E element;
+    private final Integer priority;
 
-    public PriorityQueueElement(Pair<E, Integer> element) {
+    public PriorityQueueElement(E element, Integer priority) {
         this.element = element;
+        this.priority = priority;
     }
 
     public E getPQEValue() {
-        return element.getElement0();
+        return element;
     }
 
     public Integer getPQEPriority() {
-        return element.getElement1();
+        return priority;
     }
+
 
     @Override
     public boolean equals(Object o) {
@@ -35,6 +37,6 @@ public class PriorityQueueElement<E> implements Serializable {
 
     @Override
     public String toString() {
-        return "element:" + element.getElement0() + ", priority:"+element.getElement1() ;
+        return "element:" + element + ", priority:"+ priority ;
     }
 }
