@@ -15,7 +15,7 @@ AST
  Bool ::= Bool(bool)
  Var(Id(String))   ---> Var(String)
  Val ::= Int | Bool | Undef
- Exp ::= Val | Var | Plus(Exp, Exp) | Assgn(Id,Exp) ...
+ Exp ::= Val | Var | Id | Plus(Exp, Exp) | ...
 
 Stmt ::= Assgn(Id, Exp) | ...
 
@@ -29,7 +29,7 @@ Stmt ::= Assgn(Id, Exp) | ...
  Plus(Var("a"), Val(Int(5))) 
 
  b = a + 5
- Exp(Assgn("b", Plus(Var("a"), Val(Int(5))))
+ Assgn("b", Plus(Var("a"), Val(Int(5)))
  */
 
 datatype Val = Int(i: int) | Bool(b: bool) | Undef
@@ -71,10 +71,10 @@ lemma Test1()
 }
 
 datatype Stmt =
-   Exp(exp: Exp)  // Exp;
- | While(tst: Exp, bdy: Stmt) // while (tst) bdy
- | If(cnd: Exp, bdy:Stmt, els: Stmt)
- | Seq(sq1: Stmt, sq2: Stmt)
+   Exp(exp: Exp)  
+ | If(cond: Exp, bdy: Stmt, els: Stmt)
+ | Seq(seq': Stmt, seq'': Stmt)
+ | While(tst: Exp, bdy: Stmt) 
 
 predicate BigStepStmt(stmt: Stmt, ini: map<string, Val>, fin: map<string, Val>, gas: nat)
 decreases stmt, gas
@@ -93,25 +93,21 @@ decreases stmt, gas
                 BigStepStmt(stmt, sigma1, fin, gas-gas') &&
                 0 < gas' < gas
             else fin == sigma'
-
-        // Add semantics for if
         case If(test,body,els) => 
-            exists v: Val, sigma': map<string,Val> ::
+            exists v: Val, sigma': map<string, Val> ::
             BigStepExp(test, ini, v, sigma') && v.Bool? &&
-            if (v.b)
+            if(v.b)
             then
-                exists sigma1: map<string, Val> ::
-                BigStepStmt(body,sigma',sigma1, gas)
-            else 
-                exists sigma2: map<string, Val> ::
-                BigStepStmt(els, sigma', sigma2, gas)
-        // Add semantics for block
-        case Seq(s,s') => 
-            exists sigma': map<string,Val> , 
-                   gas':nat ::
-            BigStepStmt(s, ini, sigma', gas') &&
+                exists sigma1: map<string, Val>,gas':nat ::
+                BigStepStmt(body, sigma', sigma1, gas') &&
+                0 < gas' < gas
+            else fin == sigma'
+        case Seq(seq',seq'') =>
+            exists sigma': map<string, Val>, gas':nat ::
+            BigStepStmt(seq',ini, sigma', gas') &&
             0 < gas' < gas &&
-            BigStepStmt(s', ini, sigma', gas - gas')
+            BigStepStmt(seq'', sigma', fin, gas - gas')
+
 
 }
 
@@ -130,6 +126,16 @@ lemma Test2()
     assert BigStepStmt(Exp(e2), init, final, 0);
 }
 
+lemma expIsDeterminstic(exp: Exp, ini: map<string, Val>,
+                        v1: Val, fin1: map<string, Val>,
+                        v2: Val, fin2: map<string, Val>)
+requires BigStepExp(exp, ini, v1, fin1) &&
+         BigStepExp(exp, ini, v2, fin2)
+ensures v1 == v2 && fin1 == fin2
+{
+    //?
+}
+
 /*
   HW: 
   1. Prove stmtIsDeterministic().
@@ -137,28 +143,57 @@ lemma Test2()
   Deadline: November 2, 14:00
 */
 
-lemma expIsDeterminisitc(exp: Exp, ini: map<string, Val>,
-                        v1: Val, fin1: map<string, Val>,
-                        v2: Val, fin2: map<string, Val>)
-requires BigStepExp(exp, ini, v1, fin1) &&
-        BigStepExp(exp, ini, v2, fin2)
-{
-
-}
-
-
 lemma stmtIsDeterminstic(stmt: Stmt, ini: map<string, Val>,
                         fin1: map<string, Val>,
                         fin2: map<string, Val>)
-requires exists gas: nat :: BigStepStmt(stmt, ini, fin1, gas) &&
-         exists gas: nat :: BigStepStmt(stmt, ini, fin2, gas)
+requires exists gas1: nat :: BigStepStmt(stmt, ini, fin1, gas1) &&
+         exists gas2: nat :: BigStepStmt(stmt, ini, fin2, gas2)
 ensures fin1 == fin2
 {
-    //?
     match stmt
-        case Exp(e) => 
-            forall v1: Val, v2: Val ::    
+        case Exp(e) =>
+            var v1: Val :| BigStepExp(e, ini, v1, fin1);
+            var v2: Val :| BigStepExp(e, ini, v2, fin2);
+            expIsDeterminstic(e, ini, v1, fin1, v2, fin2);
+        case While(exp , stm) =>
+            var  v: Val, sigma': map<string, Val> :|
+            BigStepExp(exp, ini, v, sigma') && v.Bool?;
+            if(v.b){
+                var gas1: nat :| BigStepStmt(stmt, ini, fin1, gas1);
+                var gas2: nat :|  BigStepStmt(stmt, ini, fin2, gas2);
 
+                var sigma1, gas1' :| 0 < gas1' < gas1 && BigStepStmt(stm, ini, sigma1, gas1') && BigStepStmt(stmt, sigma1, fin1, gas1 - gas1');
+                var sigma2, gas2' :| 0 < gas2' < gas2 && BigStepStmt(stm, ini, sigma2, gas2') && BigStepStmt(stmt, sigma2, fin2, gas2 - gas2');                
+                
+                stmtIsDeterminstic(stm, ini, sigma1, sigma2);
+                assert sigma1 == sigma2;
+                stmtIsDeterminstic(stmt, sigma1, fin1, fin2);
+                assert fin1 == fin2;
+            }
+            else{
+                
+            }
+        case If(exp, stm1, stm2) =>
+            var  v: Val, sigma': map<string, Val> :|
+            BigStepExp(exp, ini, v, sigma') && v.Bool?;
+
+            if(v.b){
+                stmtIsDeterminstic(stm1, ini, fin1, fin2);
+                assert fin1 == fin2;
+            }else{
+                stmtIsDeterminstic(stm2, ini, fin1, fin2);
+                assert fin1 == fin2;
+            }
+        case Seq(stm1, stm2) => 
+            var gas1: nat :| BigStepStmt(stmt, ini, fin1, gas1);
+            var gas2: nat :|  BigStepStmt(stmt, ini, fin2, gas2);
+
+            var sigma', gas1' :| 0 < gas1' < gas1 && BigStepStmt(stm1, ini, sigma', gas1') && BigStepStmt(stm2, sigma', fin1, gas1 - gas1');
+            var sigma'', gas2' :| 0 < gas2' < gas1 && BigStepStmt(stm1, ini, sigma'', gas2') && BigStepStmt(stm2, sigma'', fin2, gas2 - gas2');
+            
+            stmtIsDeterminstic(stm1, ini, sigma', sigma'');
+            assert sigma' == sigma'';
+            stmtIsDeterminstic(stm2, sigma', fin1, fin2);
+            assert fin1 == fin2;
 }
-
 
